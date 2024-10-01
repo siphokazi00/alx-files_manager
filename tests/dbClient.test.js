@@ -5,6 +5,4 @@ describe('DB Client', () => {
         const isConnected = await dbClient.isConnected();
         expect(isConnected).toBe(true);
     });
-
-    // Other DB tests...
 });
