@@ -16,34 +16,26 @@ MongoClient.connect(uri, { useUnifiedTopology: true }, (err, client) => {
 });
 
 class UsersController {
-  static async postNew(req, res) {
-    const { email, password } = req.body;
-
-    // Check if email is provided
-    if (!email) {
-      return res.status(400).json({ error: 'Missing email' });
-    }
-
-    // Check if password is provided
-    if (!password) {
-      return res.status(400).json({ error: 'Missing password' });
+  static async getMe(req, res) {
+    const token = req.headers['x-token'];
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     try {
-      // Check if the user already exists
-      const userExists = await db.collection('users').findOne({ email });
-      if (userExists) {
-        return res.status(400).json({ error: 'Already exist' });
+      const userId = await redisClient.get(`auth_${token}`);
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      // Hash the password using SHA1
-      const sha1Password = crypto.createHash('sha1').update(password).digest('hex');
+      // Find the user by ID in MongoDB
+      const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+      if (!user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
 
-      // Insert the new user into the database
-      const result = await db.collection('users').insertOne({ email, password: sha1Password });
-
-      // Respond with the user's ID and email
-      return res.status(201).json({ id: result.insertedId, email });
+      // Respond with the user's email and id
+      return res.status(200).json({ id: user._id, email: user.email });
     } catch (error) {
       console.error(error);
       return res.status(500).json({ error: 'Server error' });
